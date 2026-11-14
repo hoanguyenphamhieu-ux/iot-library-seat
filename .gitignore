@@ -1,0 +1,15 @@
+# Bi mat - KHONG BAO GIO commit
+.env
+**/secrets.h
+
+# Moi truong, build
+.venv/
+.pio/
+__pycache__/
+*.pyc
+*.db
+*.log
+
+# He dieu hanh
+Thumbs.db
+.DS_Store
