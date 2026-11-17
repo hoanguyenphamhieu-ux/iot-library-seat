@@ -14,7 +14,7 @@ Chay:
 
 Gateway ket noi bang: SERIAL_URL=socket://localhost:7000
 """
-
+#bridge giả để test khi chưa có phần cứng. Nó giả vờ là cổng Serial (qua TCP 7000) và phát dữ liệu theo kịch bản.
 import argparse
 import json
 import random
@@ -75,14 +75,23 @@ class Seat:
         }
 
 
-def seat01_state_at(sim_t):
-    cycle = sum(d for d, _ in SEAT01_SCRIPT)
+# Seat-02, Seat-03: hanh vi BINH THUONG (cho AI so sanh voi Seat-01 giu cho), lap lai moi 900 giay
+SEAT02_SCRIPT = [(120, "EMPTY"), (600, "OCCUPIED"), (30, "OBJECT_ONLY"), (150, "OCCUPIED")]
+SEAT03_SCRIPT = [(500, "EMPTY"), (300, "OCCUPIED"), (100, "EMPTY")]
+
+
+def script_state_at(script, sim_t):
+    cycle = sum(d for d, _ in script)
     t = sim_t % cycle
-    for duration, state in SEAT01_SCRIPT:
+    for duration, state in script:
         if t < duration:
             return state
         t -= duration
-    return SEAT01_SCRIPT[-1][1]
+    return script[-1][1]
+
+
+def seat01_state_at(sim_t):
+    return script_state_at(SEAT01_SCRIPT, sim_t)
 
 
 class FakeBridge:
@@ -180,9 +189,8 @@ class FakeBridge:
     def update_states(self):
         t = self.sim_time()
         self.seats["Seat-01"].set_state(seat01_state_at(t), t)
-        for name in ("Seat-02", "Seat-03"):
-            if random.random() < 0.15:   # thinh thoang doi trang thai ngau nhien
-                self.seats[name].set_state(random.choice(["EMPTY", "OCCUPIED", "OBJECT_ONLY"]), t)
+        self.seats["Seat-02"].set_state(script_state_at(SEAT02_SCRIPT, t), t)
+        self.seats["Seat-03"].set_state(script_state_at(SEAT03_SCRIPT, t), t)
 
     def serve_client(self, conn, addr):
         print(f"# Gateway da ket noi tu {addr}", flush=True)
