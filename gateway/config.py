@@ -36,3 +36,5 @@ AI_INTERVAL_SEC = 300           # B7: chay AI moi 5 phut
 AI_WINDOW_SEC = 1800            # B7: moi lan nhin lai 30 phut gan nhat
 AI_MODEL_PATH = Path(__file__).with_name("hog_model.joblib")
 RPC_LOG_PATH = Path(__file__).resolve().parent.parent / "docs" / "measurements" / "rpc_latency.csv"   # M3
+HOG_LIMIT_SEC = 120             # phai TRUNG voi server attribute hogLimitSec tren CoreIOT (demo 120 s)
+OFFLINE_WARN_STALE_SEC = 30     # du lieu ghe cu hon the thi khong dung de tu canh bao

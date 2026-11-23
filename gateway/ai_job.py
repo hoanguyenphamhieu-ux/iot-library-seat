@@ -69,6 +69,35 @@ def window_features(rows):
 
     return [entries, total, obj_max, occupied / len(rows)]
 
+# ---------------------------------------------------------------- thong ke trong ngay (cho dashboard)
+MAX_GAP_SEC = 30         # 2 ban tin cach nhau hon 30 giay thi khong tinh khoang giua la "dang o trang thai cu"
+
+
+def daily_stats(rows, hog_limit_sec):
+    """rows: cac ban tin cua 1 ghe tu 0h hom nay. Tra ve {"usage_pct", "hog_count"} hoac None neu chua co du lieu.
+    usage_pct: % thoi gian ghe o trang thai OCCUPIED (tinh theo thoi gian, khong dem so ban tin).
+    hog_count: so lan OBJECT_ONLY lien tuc cham/vuot hog_limit_sec."""
+    if len(rows) < 2:
+        return None
+    occupied = total = 0.0
+    hog = 0
+    ep_max = 0
+    in_ep = False
+    for prev, cur in zip(rows, rows[1:]):
+        dt = min((cur["ts"] - prev["ts"]) / 1000.0, MAX_GAP_SEC)
+        total += dt
+        if prev["state"] == "OCCUPIED":
+            occupied += dt
+    for r in rows:
+        if r["state"] == "OBJECT_ONLY":
+            in_ep = True
+            ep_max = max(ep_max, r["obj_secs"] or 0)
+        elif in_ep:
+            hog += ep_max >= hog_limit_sec
+            in_ep, ep_max = False, 0
+    if in_ep:
+        hog += ep_max >= hog_limit_sec
+    return {"usage_pct": round(100.0 * occupied / total, 1) if total else 0.0, "hog_count": hog}
 
 #  du lieu gia lap + mo hinh
 def synth_normal(n=600, seed=RANDOM_STATE):
@@ -135,9 +164,21 @@ def evaluate(store, model, window_sec, now_ms=None):
         out[seat] = {"score": score, "anomaly": anomaly, "feats": feats}
     return out
 
+def run_stats(gw):
+    """Thong ke ngay (tu 0h hom nay) cho tung ghe, gui len CoreIOT cho dashboard."""
+    import config
+    midnight = time.mktime(time.localtime()[:3] + (0, 0, 0, 0, 0, -1))
+    for seat in gw.store.seats():
+        st = daily_stats(gw.store.readings_since(seat, int(midnight * 1000)), config.HOG_LIMIT_SEC)
+        if st is None:
+            continue
+        gw.stats[seat] = st
+        gw.tb.send_telemetry(seat, st)
+        log.info("%s hom nay: su dung %.1f%%, bi giu cho %d lan", seat, st["usage_pct"], st["hog_count"])
 
 def run_once(gw, model):
     import config
+    run_stats(gw)
     results = evaluate(gw.store, model, config.AI_WINDOW_SEC)
     for seat, r in results.items():
         gw.hog[seat] = r
