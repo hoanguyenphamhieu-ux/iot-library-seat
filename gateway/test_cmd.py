@@ -1,3 +1,4 @@
+#script 5 dòng gửi một lệnh thử vào fake_bridge.
 import serial
 
 s = serial.serial_for_url("socket://localhost:7000")

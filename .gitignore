@@ -9,6 +9,7 @@ __pycache__/
 *.pyc
 *.db
 *.log
+*.joblib
 
 # He dieu hanh
 Thumbs.db
