@@ -33,6 +33,8 @@ class Gateway:
         self.states = {}        # seat -> state hien tai
         self.latest = {}        # seat -> ban tin telemetry moi nhat (cho trang web)
         self.hog = {}           # seat -> ket qua AI gan nhat (B7)
+        self.stats = {}         # seat -> {"usage_pct", "hog_count"} trong ngay (B7)
+        self.offline_warned = set()   # ghe da duoc gateway tu bat canh bao luc mat mang
         self.seq = {}           # seat -> {"last", "received", "missing"} trong cua so 60 giay
         self.last_loss_report = time.time()
 
@@ -126,9 +128,10 @@ class Gateway:
         if item is None:                      # ACK muon sau khi da timeout, hoac rid la
             return
         ms = (time.time() - item["t0"]) * 1000
-        if item["tb_id"] is None:             # lenh tu web
-            with self.lock:
-                self.local_results[rid] = ok
+        if item["tb_id"] is None:             # lenh tu web hoac tu canh bao khi mat mang
+            if item["method"].startswith("local-"):       # chi lenh tu web co nguoi cho ket qua
+                with self.lock:
+                    self.local_results[rid] = ok
         else:                                 # lenh tu CoreIOT
             self.tb.send_rpc_reply(item["device"], item["tb_id"], {"success": ok})
             self.log_rpc_latency(item, ok, ms)
@@ -154,6 +157,27 @@ class Gateway:
             late = [rid for rid, it in self.pending.items() if now - it["t0"] > config.RPC_TIMEOUT_SEC]
         for rid in late:
             self.finish_rpc(rid, False, "(timeout)")
+    # ---------- canh bao khi mat mang ----------
+    def offline_warning(self):
+        """Mat ket noi CoreIOT thi rule chain khong chay duoc -> gateway tu ap dung cung quy tac:
+        OBJECT_ONLY va obj_secs >= HOG_LIMIT_SEC -> warn on; ghe doi trang thai khac -> warn off."""
+        if self.tb.is_connected():
+            self.offline_warned.clear()       # co mang lai: rule chain tiep quan
+            return
+        now = now_ms()
+        for seat, v in self.latest.items():
+            if now - v["ts"] > config.OFFLINE_WARN_STALE_SEC * 1000:
+                continue                      # ghe khong gui gi nua, khong du can cu
+            hogging = v.get("state") == "OBJECT_ONLY" and (v.get("obj_secs") or 0) >= config.HOG_LIMIT_SEC
+            if hogging and seat not in self.offline_warned:
+                if self._send_cmd(seat, "warn", 1, None, "auto-warn") is not None:
+                    self.offline_warned.add(seat)
+                    log.warning("%s: mat mang, tu bat canh bao (obj_secs=%s)", seat, v.get("obj_secs"))
+            elif not hogging and seat in self.offline_warned:
+                if self._send_cmd(seat, "warn", 0, None, "auto-warn") is not None:
+                    self.offline_warned.discard(seat)
+                    log.info("%s: da het giu cho, tu tat canh bao", seat)
+
     # ---------- tinh toan ----------
     def track_seq(self, seat, seq):
         if seq is None:
@@ -216,6 +240,7 @@ class Gateway:
                     handler(msg)
 
             self.expire_pending()
+            self.offline_warning()                               # B4: tu canh bao khi mat mang
             self.tb.flush_outbox(config.OUTBOX_BATCH)            # B5: co mang lai thi gui bu
             if time.time() - self.last_loss_report >= config.LOSS_WINDOW_SEC:
                 self.report_loss()

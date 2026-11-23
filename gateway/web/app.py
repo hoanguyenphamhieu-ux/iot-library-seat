@@ -66,7 +66,8 @@ function render(){
      +'<tr><td>obj_secs</td><td>'+esc(x.obj_secs)+' s</td></tr>'
      +'<tr><td>RSSI</td><td>'+esc(x.rssi)+' dBm</td></tr>'
      +'<tr><td>Cap nhat</td><td>'+esc(x.age_s)+' s truoc</td></tr>'
-     +'<tr><td>AI giu cho</td><td>'+(x.hog?('score '+x.hog.score+(x.hog.anomaly?' - BAT THUONG':' - binh thuong')):'chua co')+'</td></tr></table>'
+     +'<tr><td>AI giu cho</td><td>'+(x.hog?('score '+x.hog.score+(x.hog.anomaly?' - BAT THUONG':' - binh thuong')):'chua co')+'</td></tr>'
+     +'<tr><td>Hom nay</td><td>'+(x.stats?('su dung '+x.stats.usage_pct+'%, giu cho '+x.stats.hog_count+' lan'):'chua co')+'</td></tr></table>'
      +'<canvas id="c-'+esc(name)+'" width="300" height="70"></canvas>'
      +'<div><button onclick="cmd(\\''+name+'\\',\\'warn\\',1)">Bat canh bao</button>'
      +'<button onclick="cmd(\\''+name+'\\',\\'warn\\',0)">Tat canh bao</button>'
@@ -108,9 +109,9 @@ def create_app(gw):
         seats = {}
         for name, v in gw.latest.items():
             item = dict(v)
-            item["age_s"] = round((now - v["ts"]) / 1000)
             item["hog"] = gw.hog.get(name)
-            seats[name] = {k: item.get(k) for k in ("state", "ai", "conf", "tof", "obj_secs", "rssi", "age_s", "hog")}
+            item["stats"] = gw.stats.get(name)
+            seats[name] = {k: item.get(k) for k in ("state", "ai", "conf", "tof", "obj_secs", "rssi", "age_s", "hog", "stats")}
         free = sum(1 for s in gw.states.values() if s == "EMPTY")
         return jsonify({
             "seats": seats,
