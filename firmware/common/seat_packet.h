@@ -1,3 +1,4 @@
+// seat_packet.h - Dinh dang goi ESP-NOW (CONTRACT.md muc 3.2). Dung chung cho node va bridge.
 #pragma once
 #include <stdint.h>
 
@@ -29,4 +30,3 @@ typedef struct __attribute__((packed)) {
   uint16_t rid;        // request id, de khop ACK voi lenh
   uint8_t  ok;         // chi dung trong ACK: 1 thanh cong
 } CmdPacket;
-
