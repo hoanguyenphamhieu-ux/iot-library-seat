@@ -1,0 +1,4 @@
+time,device,method,ok,latency_ms
+2026-11-23 11:25:53,Seat-01,setWarning,1,4
+2026-11-23 11:26:02,Seat-01,setWarning,1,6
+2026-11-23 11:26:11,Seat-01,setWarning,1,8
